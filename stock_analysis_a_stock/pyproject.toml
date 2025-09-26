@@ -1,0 +1,20 @@
+[project]
+name = "a_stock_analysis"
+version = "0.1.0"
+description = "基于AKShare的A股智能分析系统，使用CrewAI多Agent协作"
+authors = [{name = "Your Name", email = "you@example.com"}]
+readme = "README.md"
+requires-python = ">=3.12,<=3.13"
+dependencies = [
+    "crewai[tools]>=0.152.0",
+    "python-dotenv>=1.0.1",
+    "akshare>=1.12.0",
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "requests>=2.31.0",
+    "html2text>=2024.2.26",
+]
+
+[project.scripts]
+a_stock_analysis = "a_stock_analysis.main:run"
+train = "a_stock_analysis.main:train"
