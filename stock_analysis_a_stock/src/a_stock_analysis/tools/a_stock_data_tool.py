@@ -7,14 +7,14 @@ from datetime import datetime, timedelta
 
 
 class AStockDataToolSchema(BaseModel):
-    """A股数据工具输入参数"""
-    stock_code: str = Field(..., description="股票代码，如：000001.SZ（深交所）或600519.SH（上交所）")
+    """股票数据工具输入参数"""
+    stock_code: str = Field(..., description="股票代码，如：000001.SZ（深交所）、600519.SH（上交所）或00700.HK（港股）")
     data_type: str = Field(..., description="数据类型：quote（实时行情）、daily（日线数据）、financial（财务数据）、sector（板块数据）")
 
 
 class AStockDataTool(BaseTool):
-    name: str = "A股数据获取工具"
-    description: str = "获取A股股票的实时行情、历史数据、财务信息等，支持上交所和深交所股票"
+    name: str = "股票数据获取工具"
+    description: str = "获取A股和港股的实时行情、历史数据、财务信息等，支持上交所、深交所和港股"
     args_schema: Type[BaseModel] = AStockDataToolSchema
 
     def _run(self, stock_code: str, data_type: str = "quote", **kwargs) -> Any:
@@ -36,7 +36,11 @@ class AStockDataTool(BaseTool):
     def _get_real_time_quote(self, stock_code: str) -> str:
         """获取实时行情数据"""
         try:
-            # 提取股票代码部分，处理不同格式
+            # 判断是否为港股
+            if stock_code.endswith('.HK'):
+                return self._get_hk_real_time_quote(stock_code)
+            
+            # 提取A股股票代码部分，处理不同格式
             if stock_code.endswith('.SZ') or stock_code.endswith('.SH'):
                 code = stock_code.split('.')[0]
             elif len(stock_code) > 2 and (stock_code[:2] == 'sz' or stock_code[:2] == 'sh' or 
@@ -47,7 +51,7 @@ class AStockDataTool(BaseTool):
                 # 直接使用传入的代码
                 code = stock_code
 
-            # 获取实时行情数据，尝试多个数据源
+            # 获取A股实时行情数据，尝试多个数据源
             # 1. 首先尝试主数据源
             try:
                 df = ak.stock_zh_a_spot()
@@ -125,10 +129,121 @@ class AStockDataTool(BaseTool):
         except Exception as e:
             return f"获取实时行情失败: {str(e)}"
 
+    def _get_hk_real_time_quote(self, stock_code: str) -> str:
+        """获取港股实时行情数据"""
+        try:
+            # 提取港股代码，去掉.HK后缀
+            code = stock_code.replace('.HK', '')
+            
+            # 获取港股实时行情数据
+            try:
+                df = ak.stock_hk_spot()
+                # 尝试精确匹配代码
+                stock_data = df[df['代码'] == code]
+                
+                # 如果主数据源失败，尝试备用数据源
+                if stock_data.empty:
+                    df = ak.stock_hk_spot_em()
+                    stock_data = df[df['代码'] == code]
+            except Exception as e:
+                # 如果主数据源出错，直接尝试备用数据源
+                df = ak.stock_hk_spot_em()
+                stock_data = df[df['代码'] == code]
+
+            if stock_data.empty:
+                return f"未找到港股 {stock_code} 的实时数据。请检查代码格式。"
+
+            # 提取主要信息
+            row = stock_data.iloc[0]
+            
+            # 安全地构建结果字符串，检查每个字段是否存在
+            result = f"港股：{row.get('名称', '未知')} ({stock_code})\n"
+            
+            # 港股字段可能不同，需要适配
+            price_fields = ['最新价', '现价', '价格']
+            for field in price_fields:
+                if field in row and pd.notna(row[field]):
+                    try:
+                        result += f"当前价格：{float(row[field]):.2f}港币\n"
+                        break
+                    except (ValueError, TypeError):
+                        result += f"当前价格：{row[field]}港币\n"
+                        break
+            
+            # 涨跌幅
+            change_fields = ['涨跌幅', '涨跌%', '涨跌幅度']
+            for field in change_fields:
+                if field in row and pd.notna(row[field]):
+                    try:
+                        result += f"涨跌幅：{float(row[field]):.2f}%\n"
+                        break
+                    except (ValueError, TypeError):
+                        result += f"涨跌幅：{row[field]}\n"
+                        break
+            
+            # 涨跌额
+            change_amount_fields = ['涨跌额', '涨跌', '涨跌金额']
+            for field in change_amount_fields:
+                if field in row and pd.notna(row[field]):
+                    try:
+                        result += f"涨跌额：{float(row[field]):.2f}港币\n"
+                        break
+                    except (ValueError, TypeError):
+                        result += f"涨跌额：{row[field]}港币\n"
+                        break
+            
+            # 成交量
+            volume_fields = ['成交量', '成交股数', '股数']
+            for field in volume_fields:
+                if field in row and pd.notna(row[field]):
+                    try:
+                        result += f"成交量：{int(row[field]):,}股\n"
+                        break
+                    except (ValueError, TypeError):
+                        result += f"成交量：{row[field]}\n"
+                        break
+            
+            # 成交额
+            amount_fields = ['成交额', '成交金额', '金额']
+            for field in amount_fields:
+                if field in row and pd.notna(row[field]):
+                    try:
+                        result += f"成交额：{int(row[field]):,}港币\n"
+                        break
+                    except (ValueError, TypeError):
+                        result += f"成交额：{row[field]}港币\n"
+                        break
+            
+            # 添加其他重要字段
+            important_fields = ['最高', '最低', '今开', '昨收', '市盈率', '市净率', '总市值']
+            field_names = {'最高': '最高价', '最低': '最低价', '今开': '开盘价', '昨收': '昨收价',
+                          '市盈率': '市盈率', '市净率': '市净率', '总市值': '总市值'}
+            
+            for field in important_fields:
+                if field in row and pd.notna(row[field]):
+                    try:
+                        if field in ['最高', '最低', '今开', '昨收']:
+                            result += f"{field_names[field]}：{float(row[field]):.2f}港币\n"
+                        elif field in ['市盈率', '市净率']:
+                            result += f"{field_names[field]}：{float(row[field]):.2f}\n"
+                        elif field in ['总市值']:
+                            result += f"{field_names[field]}：{int(row[field]):,}港币\n"
+                    except (ValueError, TypeError):
+                        result += f"{field_names[field]}：{row[field]}\n"
+
+            return result
+
+        except Exception as e:
+            return f"获取港股实时行情失败: {str(e)}"
+
     def _get_daily_data(self, stock_code: str, period: str = "daily") -> str:
         """获取历史K线数据"""
         try:
-            # 确定市场类型
+            # 判断是否为港股
+            if stock_code.endswith('.HK'):
+                return self._get_hk_daily_data(stock_code)
+            
+            # 确定A股市场类型
             if stock_code.endswith('.SZ'):
                 market = "sz"
             elif stock_code.endswith('.SH'):
@@ -190,10 +305,73 @@ class AStockDataTool(BaseTool):
         except Exception as e:
             return f"获取历史数据失败: {str(e)}"
 
+    def _get_hk_daily_data(self, stock_code: str) -> str:
+        """获取港股历史K线数据"""
+        try:
+            # 提取港股代码，去掉.HK后缀
+            code = stock_code.replace('.HK', '')
+            
+            # 获取历史数据（最近30天）
+            end_date = datetime.now().strftime('%Y%m%d')
+            start_date = (datetime.now() - timedelta(days=30)).strftime('%Y%m%d')
+
+            # 使用港股历史数据函数
+            df = ak.stock_hk_hist(symbol=code, period="daily",
+                                 start_date=start_date, end_date=end_date,
+                                 adjust="qfq")
+
+            if df.empty:
+                return f"未找到港股 {stock_code} 的历史数据"
+
+            # 计算技术指标
+            df['MA5'] = df['收盘'].rolling(window=5).mean()
+            df['MA10'] = df['收盘'].rolling(window=10).mean()
+            df['MA20'] = df['收盘'].rolling(window=20).mean()
+
+            # 获取最近的数据
+            recent_data = df.tail(10)
+
+            result = f"""
+港股 {stock_code} 最近10个交易日数据：
+{'日期':<12} {'开盘':<8} {'最高':<8} {'最低':<8} {'收盘':<8} {'涨跌幅':<8} {'成交量':<12}
+{'-'*80}
+"""
+
+            for _, row in recent_data.iterrows():
+                result += f"{row['日期']:<12} {row['开盘']:<8.2f} {row['最高']:<8.2f} {row['最低']:<8.2f} {row['收盘']:<8.2f} {row['涨跌幅']:<8.2f}% {row['成交量']:<12,}\n"
+
+            # 技术分析
+            latest = df.iloc[-1]
+            prev_ma5 = df.iloc[-6]['MA5'] if len(df) > 5 else None
+            current_ma5 = df.iloc[-1]['MA5']
+
+            result += f"\n技术分析：\n"
+            result += f"当前价格：{latest['收盘']:.2f}港币\n"
+            result += f"MA5：{current_ma5:.2f}港币\n"
+            result += f"MA10：{df.iloc[-1]['MA10']:.2f}港币\n"
+            result += f"MA20：{df.iloc[-1]['MA20']:.2f}港币\n"
+
+            if prev_ma5 and current_ma5:
+                if latest['收盘'] > current_ma5 > prev_ma5:
+                    result += "趋势：短期上升趋势\n"
+                elif latest['收盘'] < current_ma5 < prev_ma5:
+                    result += "趋势：短期下降趋势\n"
+                else:
+                    result += "趋势：震荡整理\n"
+
+            return result
+
+        except Exception as e:
+            return f"获取港股历史数据失败: {str(e)}"
+
     def _get_financial_data(self, stock_code: str) -> str:
         """获取财务数据"""
         try:
-            # 确定市场类型
+            # 判断是否为港股
+            if stock_code.endswith('.HK'):
+                return self._get_hk_financial_data(stock_code)
+            
+            # 确定A股市场类型
             if stock_code.endswith('.SZ'):
                 market = "sz"
             elif stock_code.endswith('.SH'):
@@ -303,6 +481,95 @@ class AStockDataTool(BaseTool):
 
         except Exception as e:
             return f"获取财务数据失败: {str(e)}"
+
+    def _get_hk_financial_data(self, stock_code: str) -> str:
+        """获取港股财务数据"""
+        try:
+            # 提取港股代码，去掉.HK后缀
+            code = stock_code.replace('.HK', '')
+            
+            # 获取港股财务数据
+            try:
+                df = ak.stock_financial_hk_analysis_indicator_em(symbol=code)
+            except Exception as e:
+                # 尝试其他港股财务数据函数
+                try:
+                    df = ak.stock_financial_hk_report_em(symbol=code)
+                except Exception as e2:
+                    return f"获取港股财务数据失败: {str(e2)}"
+
+            if df.empty:
+                return f"未找到港股 {stock_code} 的财务数据"
+
+            # 获取最新的财务数据
+            latest_data = df.iloc[-1]
+
+            # 构建结果字符串
+            result = f"港股 {stock_code} 主要财务指标：\n\n"
+            result += "盈利能力：\n"
+            
+            # 检查并添加可用的字段
+            if '每股收益' in df.columns and pd.notna(latest_data['每股收益']):
+                try:
+                    eps_value = float(latest_data['每股收益'])
+                    result += f"  每股收益：{eps_value:.3f}港币\n"
+                except (ValueError, TypeError):
+                    result += f"  每股收益：{latest_data['每股收益']}港币\n"
+            
+            if '净资产收益率' in df.columns and pd.notna(latest_data['净资产收益率']):
+                try:
+                    roe_value = float(latest_data['净资产收益率'])
+                    result += f"  净资产收益率：{roe_value:.2f}%\n"
+                except (ValueError, TypeError):
+                    result += f"  净资产收益率：{latest_data['净资产收益率']}\n"
+            
+            if '毛利率' in df.columns and pd.notna(latest_data['毛利率']):
+                try:
+                    gross_margin = float(latest_data['毛利率'])
+                    result += f"  毛利率：{gross_margin:.2f}%\n"
+                except (ValueError, TypeError):
+                    result += f"  毛利率：{latest_data['毛利率']}\n"
+            
+            result += "\n偿债能力：\n"
+            if '资产负债率' in df.columns and pd.notna(latest_data['资产负债率']):
+                try:
+                    if isinstance(latest_data['资产负债率'], str):
+                        debt_ratio = float(latest_data['资产负债率'].replace('%', '').strip())
+                    else:
+                        debt_ratio = float(latest_data['资产负债率'])
+                    result += f"  资产负债率：{debt_ratio:.2f}%\n"
+                except (ValueError, TypeError):
+                    result += f"  资产负债率：{latest_data['资产负债率']}\n"
+            
+            if '流动比率' in df.columns and pd.notna(latest_data['流动比率']):
+                try:
+                    current_ratio = float(latest_data['流动比率'])
+                    result += f"  流动比率：{current_ratio:.2f}\n"
+                except (ValueError, TypeError):
+                    result += f"  流动比率：{latest_data['流动比率']}\n"
+            
+            result += "\n成长能力：\n"
+            if '净利润增长率' in df.columns and pd.notna(latest_data['净利润增长率']):
+                try:
+                    if isinstance(latest_data['净利润增长率'], str):
+                        if '%' in latest_data['净利润增长率']:
+                            growth_rate = float(latest_data['净利润增长率'].replace('%', '').strip())
+                        else:
+                            growth_rate = float(latest_data['净利润增长率'])
+                    else:
+                        growth_rate = float(latest_data['净利润增长率'])
+                    result += f"  净利润增长率：{growth_rate:.2f}%\n"
+                except (ValueError, TypeError):
+                    result += f"  净利润增长率：{latest_data['净利润增长率']}\n"
+            
+            # 添加报告期信息
+            if '报告期' in df.columns:
+                result += f"\n报告期：{latest_data['报告期']}\n"
+
+            return result
+
+        except Exception as e:
+            return f"获取港股财务数据失败: {str(e)}"
 
     def _get_sector_data(self) -> str:
         """获取行业板块数据"""
