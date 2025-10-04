@@ -7,18 +7,27 @@ from tools.financial_tool import FinancialAnalysisTool
 from tools.market_sentiment_tool import MarketSentimentTool
 from tools.calculator_tool import CalculatorTool
 
+import os
 from dotenv import load_dotenv
 load_dotenv()
 
 # from langchain.llms import Ollama
 # llm = Ollama(model="llama3.1")
 
+# 从环境变量读取模型配置
+model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o")
+api_key = os.getenv("OPENAI_API_KEY")
+base_url = os.getenv("OPENAI_BASE_URL")
+temperature = float(os.getenv("TEMPERATURE", "0.8"))
+max_tokens = int(os.getenv("MAX_TOKENS", "14000"))
 
 from crewai import LLM
 llm = LLM(
-    model="openai/gpt-4o", # call model by provider/model_name
-    temperature=0.8,
-    max_tokens=14000,
+    model=f"openai/{model_name}", # 使用环境变量中的模型名称
+    api_key=api_key,
+    base_url=base_url,
+    temperature=temperature,
+    max_tokens=max_tokens,
     top_p=0.9,
     frequency_penalty=0.1,
     presence_penalty=0.1,
