@@ -44,6 +44,36 @@ cd ui
 **详细使用说明：** 查看 [UI_使用指南.md](./UI_使用指南.md)  
 **快速开始：** 查看 [QUICK_START.md](./QUICK_START.md)
 
+## 📦 新功能：单体可执行文件打包
+
+现在支持将整个系统（Go UI + Python引擎）打包成单个Windows可执行文件包！
+
+### 打包特性
+
+- 🎁 **单体分发**：无需安装Python或Go环境
+- 📦 **一键构建**：自动打包Python引擎和Go程序
+- 💻 **开箱即用**：双击启动，浏览器自动打开
+- 🔒 **独立运行**：包含所有依赖，无需外部环境
+
+### 快速构建
+
+**Windows系统：**
+```bash
+build_windows_exe.bat
+```
+
+**Linux/macOS系统（交叉编译）：**
+```bash
+chmod +x build_windows_exe.sh
+./build_windows_exe.sh
+```
+
+构建完成后，发布包位于 `release/A股智能分析系统/` 目录。
+
+**详细打包说明：**
+- [打包指南.md](./打包指南.md) - 中文详细教程
+- [BUILD_GUIDE.md](./BUILD_GUIDE.md) - English technical guide
+
 ## 🏗️ 系统架构
 
 ### 四大专业Agent

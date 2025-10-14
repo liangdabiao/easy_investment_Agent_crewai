@@ -698,24 +698,39 @@ func runAnalysis(session *AnalysisSession) {
 		session.mu.Unlock()
 	}()
 
-	// Find Python executable
-	pythonCmd := findPython()
-	if pythonCmd == "" {
-		session.broadcastError("未找到Python环境，请确保已安装Python 3.12+")
-		return
-	}
-
-	// Find the main.py path
-	mainPyPath := findMainPy()
-	if mainPyPath == "" {
-		session.broadcastError("未找到Python分析脚本")
-		return
-	}
-
 	session.broadcastStatus("正在启动Python分析引擎...")
 
-	// Create a temporary Python script to run analysis with parameters
-	tmpScript := fmt.Sprintf(`
+	// Try to find bundled Python engine first
+	enginePath := findBundledEngine()
+	var cmd *exec.Cmd
+	
+	if enginePath != "" {
+		// Use bundled engine
+		session.broadcastStatus("使用内置Python引擎...")
+		cmd = exec.Command(
+			enginePath,
+			"--company", session.CompanyName,
+			"--code", session.StockCode,
+			"--market", session.Market,
+		)
+	} else {
+		// Fallback to traditional Python method
+		session.broadcastStatus("使用系统Python环境...")
+		
+		pythonCmd := findPython()
+		if pythonCmd == "" {
+			session.broadcastError("未找到Python环境，请确保已安装Python 3.12+")
+			return
+		}
+
+		mainPyPath := findMainPy()
+		if mainPyPath == "" {
+			session.broadcastError("未找到Python分析脚本")
+			return
+		}
+
+		// Create a temporary Python script to run analysis with parameters
+		tmpScript := fmt.Sprintf(`
 import sys
 import os
 sys.path.insert(0, '%s')
@@ -740,22 +755,22 @@ print("########################\\n")
 print(result)
 `, filepath.Dir(mainPyPath), session.CompanyName, session.StockCode, session.Market)
 
-	tmpFile, err := os.CreateTemp("", "analysis_*.py")
-	if err != nil {
-		session.broadcastError(fmt.Sprintf("创建临时脚本失败: %v", err))
-		return
-	}
-	defer os.Remove(tmpFile.Name())
+		tmpFile, err := os.CreateTemp("", "analysis_*.py")
+		if err != nil {
+			session.broadcastError(fmt.Sprintf("创建临时脚本失败: %v", err))
+			return
+		}
+		defer os.Remove(tmpFile.Name())
 
-	if _, err := tmpFile.WriteString(tmpScript); err != nil {
-		session.broadcastError(fmt.Sprintf("写入临时脚本失败: %v", err))
-		return
-	}
-	tmpFile.Close()
+		if _, err := tmpFile.WriteString(tmpScript); err != nil {
+			session.broadcastError(fmt.Sprintf("写入临时脚本失败: %v", err))
+			return
+		}
+		tmpFile.Close()
 
-	// Execute Python script
-	cmd := exec.Command(pythonCmd, tmpFile.Name())
-	cmd.Dir = filepath.Dir(mainPyPath)
+		cmd = exec.Command(pythonCmd, tmpFile.Name())
+		cmd.Dir = filepath.Dir(mainPyPath)
+	}
 
 	// Set up pipes for stdout and stderr
 	stdout, err := cmd.StdoutPipe()
@@ -896,6 +911,33 @@ func (s *AnalysisSession) broadcastError(errMsg string) {
 			log.Printf("Error writing to websocket: %v", err)
 		}
 	}
+}
+
+func findBundledEngine() string {
+	// Get the directory where the executable is located
+	exePath, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+	exeDir := filepath.Dir(exePath)
+	
+	// Check for bundled engine in several locations
+	possiblePaths := []string{
+		// Next to the executable
+		filepath.Join(exeDir, "python_bundle", "stock_analysis_engine", "stock_analysis_engine.exe"),
+		filepath.Join(exeDir, "python_bundle", "stock_analysis_engine", "stock_analysis_engine"),
+		// In a subdirectory
+		filepath.Join(exeDir, "stock_analysis_engine", "stock_analysis_engine.exe"),
+		filepath.Join(exeDir, "stock_analysis_engine", "stock_analysis_engine"),
+	}
+	
+	for _, path := range possiblePaths {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	
+	return ""
 }
 
 func findPython() string {

@@ -4,6 +4,9 @@ stock-analysis-ui-*
 *.exe
 !*.go
 
+# Python bundle (embedded)
+python_bundle/
+
 # Temporary files
 *.tmp
 *.log

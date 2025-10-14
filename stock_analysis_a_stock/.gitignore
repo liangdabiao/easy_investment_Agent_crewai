@@ -1,0 +1,28 @@
+# PyInstaller build outputs
+build/
+dist/
+*.spec.backup
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+*.egg-info/
+.eggs/
+
+# Environment
+.env
+
+# Logs
+*.log
+
+# Test outputs
+.pytest_cache/
+htmlcov/
+.coverage
