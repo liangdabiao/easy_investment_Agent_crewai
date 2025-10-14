@@ -1,0 +1,13 @@
+# Binaries
+stock-analysis-ui
+stock-analysis-ui-*
+*.exe
+!*.go
+
+# Temporary files
+*.tmp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
