@@ -64,8 +64,8 @@ cp "ui/stock-analysis-ui-windows-amd64.exe" "release/A股智能分析系统/A股
 cp -r "ui/python_bundle" "release/A股智能分析系统/"
 
 # 复制环境变量模板
-if [ -f "stock_analysis_a_stock/src/a_stock_analysis/.env.example" ]; then
-    cp "stock_analysis_a_stock/src/a_stock_analysis/.env.example" "release/A股智能分析系统/.env.example"
+if [ -f "stock_analysis_a_stock/src/a_stock_analysis/env.example" ]; then
+    cp "stock_analysis_a_stock/src/a_stock_analysis/env.example" "release/A股智能分析系统/.env.example"
 fi
 
 # 创建启动脚本

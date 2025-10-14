@@ -77,8 +77,8 @@ REM 复制Python引擎
 xcopy /E /I /Y "ui\python_bundle" "release\A股智能分析系统\python_bundle"
 
 REM 复制环境变量模板
-if exist "stock_analysis_a_stock\src\a_stock_analysis\.env.example" (
-    copy "stock_analysis_a_stock\src\a_stock_analysis\.env.example" "release\A股智能分析系统\.env.example"
+if exist "stock_analysis_a_stock\src\a_stock_analysis\env.example" (
+    copy "stock_analysis_a_stock\src\a_stock_analysis\env.example" "release\A股智能分析系统\.env.example"
 )
 
 REM 创建启动脚本
