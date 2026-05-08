@@ -9,6 +9,70 @@
 - **🇨🇳 A股市场特色**：针对中国股市特点优化分析
 - **📈 专业分析工具**：基于AKShare的专业数据源
 - **🎯 智能投资建议**：综合分析提供投资决策参考
+- **🖥️ 桌面UI界面**：全新的Go语言图形界面，美观易用（NEW!）
+
+## 🎨 新功能：桌面UI界面
+
+现在您可以使用全新的桌面UI界面来运行股票分析！无需命令行操作，一键启动即可。
+
+![UI界面预览](https://github.com/user-attachments/assets/27964e95-e900-42f8-954b-b64adc6c8df3)
+
+### UI特性
+
+- ✨ **美观的渐变界面**：现代化设计，优秀的视觉体验
+- 📊 **实时进度显示**：WebSocket实时推送分析进度和输出
+- 🚀 **一键启动**：自动打开浏览器，无需手动访问
+- 💼 **快速示例**：内置常用股票，点击即可填充
+- 🔄 **跨平台支持**：支持Windows、Linux、macOS
+
+### 快速开始UI
+
+**Windows用户：**
+```bash
+cd ui
+run.bat
+```
+
+**Linux/macOS用户：**
+```bash
+cd ui
+./run.sh
+```
+
+浏览器会自动打开，访问 http://localhost:8080
+
+**详细使用说明：** 查看 [UI_使用指南.md](./UI_使用指南.md)  
+**快速开始：** 查看 [QUICK_START.md](./QUICK_START.md)
+
+## 📦 新功能：单体可执行文件打包
+
+现在支持将整个系统（Go UI + Python引擎）打包成单个Windows可执行文件包！
+
+### 打包特性
+
+- 🎁 **单体分发**：无需安装Python或Go环境
+- 📦 **一键构建**：自动打包Python引擎和Go程序
+- 💻 **开箱即用**：双击启动，浏览器自动打开
+- 🔒 **独立运行**：包含所有依赖，无需外部环境
+
+### 快速构建
+
+**Windows系统：**
+```bash
+build_windows_exe.bat
+```
+
+**Linux/macOS系统（交叉编译）：**
+```bash
+chmod +x build_windows_exe.sh
+./build_windows_exe.sh
+```
+
+构建完成后，发布包位于 `release/A股智能分析系统/` 目录。
+
+**详细打包说明：**
+- [打包指南.md](./打包指南.md) - 中文详细教程
+- [BUILD_GUIDE.md](./BUILD_GUIDE.md) - English technical guide
 
 ## 🏗️ 系统架构
 
